@@ -42,3 +42,7 @@ int tloe_get_mask(TloeFrame *frame) {
 int is_ack_msg(TloeFrame *frame) {
 	return (frame->mask == 0);
 }
+
+int is_connection(TloeFrame *frame) {
+	return (!frame->connection == 0);
+}
