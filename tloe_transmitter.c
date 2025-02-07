@@ -30,7 +30,8 @@ TloeFrame *TX(TloeFrame *tloeframe, TloeEther *ether) {
 		// Checking credit for flow control, increase the sequence number, store in the retransmission buffer, and send
 		if (is_ack_msg(tloeframe)) {
 			printf("ERROR: %s: %d\n", __FILE__, __LINE__);
-			exit(1);
+			//exit(1);
+			while(1);	
 		} 
 
 		// Check credit for flow control

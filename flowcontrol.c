@@ -30,6 +30,7 @@ int check_all_channels(FlowControlCredit *fc) {
 }
 
 int dec_credit(FlowControlCredit *fc, int channel, int credit) {
+	return 1;
 	int result = 0;
 	unsigned int flit_cnt = (1 << credit);
 

@@ -8,6 +8,7 @@
 #include <errno.h>
 
 static int ack_cnt = 0;
+static int tlmsg_drop_cnt = 0;
 
 void RX(TloeEther *ether) {
     int size;
@@ -42,7 +43,7 @@ void RX(TloeEther *ether) {
             }
 
 			// Increase Credits for flow control
-			inc_credit(fc_credit, tloeframe->channel, tloeframe->credit);
+			//inc_credit(fc_credit, tloeframe->channel, tloeframe->credit);
 
             // Update sequence numbers
             next_rx_seq = (tloeframe->seq_num + 1) % (MAX_SEQ_NUM + 1);
@@ -52,7 +53,7 @@ void RX(TloeEther *ether) {
             free(tloeframe);
 
             if (ack_cnt % 100 == 0) {
-                printf("next_tx: %d, ackd: %d, next_rx: %d, ack_cnt:%d, cha:%d, credit:%d\n", next_tx_seq, acked_seq, next_rx_seq, ack_cnt, CHANNEL_A, get_credit(fc_credit, CHANNEL_A));
+                printf("next_tx: %d, ackd: %d, next_rx: %d, ack_cnt:%d, cha:%d, credit:%d (%d)\n", next_tx_seq, acked_seq, next_rx_seq, ack_cnt, CHANNEL_A, get_credit(fc_credit, CHANNEL_A), tlmsg_drop_cnt);
             }
         } else {
             // Normal request packet
@@ -62,18 +63,13 @@ void RX(TloeEther *ether) {
 			int channel = 0;
 			int credit = 0;
 
-            // Handle TileLink Msg
-			tl_handler(tl, &channel, &credit);
-//          printf("RX: Send pakcet to Tx channel for replying ACK/NAK with seq_num: %d, seq_num_ack: %d, ack: %d\n",
-//              tloeframe->seq_num, tloeframe->seq_num_ack, tloeframe->ack);
-
             *frame = *tloeframe;
             frame->mask = 0;                // To indicate ACK
 			frame->channel = channel;
 			frame->credit = credit;
 
             if (!enqueue(ack_buffer, (void *) frame)) {
-                printf("File: %s line: %d: enqueue error\n", __FILE__, __LINE__);
+                printf("File: %s line: %d: ack_buffer enqueue error\n", __FILE__, __LINE__);
                 exit(1);
             }
 
@@ -81,8 +77,23 @@ void RX(TloeEther *ether) {
             next_rx_seq = (tloeframe->seq_num + 1) % (MAX_SEQ_NUM+1);
             acked_seq = tloeframe->seq_num_ack;
 
+#if 0
+            // Handle TileLink Msg
+			tl->opcode = tloeframe->opcode;
+			tl_handler(tl, &channel, &credit);
+//          printf("RX: Send pakcet to Tx channel for replying ACK/NAK with seq_num: %d, seq_num_ack: %d, ack: %d\n",
+//              tloeframe->seq_num, tloeframe->seq_num_ack, tloeframe->ack);
+#else
+			tl->opcode = tloeframe->opcode;
+            if (!enqueue(tl_message_buffer, (void *) tl)) {
+                //printf("File: %s line: %d: tl_message_buffer enqueue error\n", __FILE__, __LINE__);
+                //exit(1);
+				// (DEBUG) DROP TL message
+				tlmsg_drop_cnt++;
+            }
+#endif
+
 			// tloeframe must be freed here
-			free(tl);
 			free(tloeframe);
 		}
 		//if (next_tx_seq % 100 == 0)

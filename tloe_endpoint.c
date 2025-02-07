@@ -13,6 +13,7 @@
 #include "tloe_transmitter.h"
 #include "tloe_receiver.h"
 #include "tilelink_msg.h"
+#include "tilelink_handler.h"
 #include "retransmission.h"
 #include "flowcontrol.h"
 #include "util/circular_queue.h"
@@ -22,6 +23,8 @@ CircularQueue *retransmit_buffer;
 CircularQueue *rx_buffer;
 CircularQueue *message_buffer;
 CircularQueue *ack_buffer;
+CircularQueue *tl_message_buffer;
+CircularQueue *reply_buffer;
 
 FlowControlCredit *fc_credit;
 
@@ -37,13 +40,31 @@ static int is_done = 1;
 time_t last_ack_time = 0;
 #endif
 
+TloeFrame *select_buffer() {
+	TloeFrame *tloeframe = NULL;
+
+#if 1
+	tloeframe = (TloeFrame *) dequeue(reply_buffer);
+	if (tloeframe)
+		goto out;
+#endif
+
+	tloeframe = (TloeFrame *) dequeue(message_buffer);
+
+out:
+	return tloeframe;
+}
+
 void *tloe_endpoint(void *arg) {
 	TloeFrame *request_tloeframe = NULL;
 	TloeFrame *not_transmitted_frame = NULL;
 
 	while(is_done) {
-		if (!request_tloeframe && !is_queue_empty(message_buffer)) 
-			request_tloeframe = dequeue(message_buffer);
+		RX(ether);
+
+		if (!request_tloeframe) {
+			request_tloeframe = select_buffer();
+		}
 
 		not_transmitted_frame = TX(request_tloeframe, ether);
 		if (not_transmitted_frame) {
@@ -54,7 +75,7 @@ void *tloe_endpoint(void *arg) {
 			request_tloeframe = NULL;
 		}
 
-		RX(ether);
+		tl_handler();
 	}
 }
 
@@ -80,6 +101,8 @@ int main(int argc, char *argv[]) {
     rx_buffer = create_queue(10); // credits
 	message_buffer = create_queue(10000);
 	ack_buffer = create_queue(100);
+	tl_message_buffer = create_queue(100);
+	reply_buffer = create_queue(100);
 	fc_credit = create_credit();	
 
 	if (pthread_create(&tloe_endpoint_thread, NULL, tloe_endpoint, NULL) != 0) {
@@ -151,6 +174,7 @@ int main(int argc, char *argv[]) {
 				new_tloe->channel = CHANNEL_A;
 				new_tloe->credit = 2;	// tmp
 				new_tloe->mask = 1;		 // Set mask (1 = normal packet)
+				new_tloe->opcode = A_GET_OPCODE;
 
 				while(is_queue_full(message_buffer)) 
 					usleep(1000);
@@ -183,6 +207,8 @@ int main(int argc, char *argv[]) {
     delete_queue(retransmit_buffer);
     delete_queue(rx_buffer);
     delete_queue(ack_buffer);
+	delete_queue(tl_message_buffer);
+    delete_queue(reply_buffer);
 
     return 0;
 }
