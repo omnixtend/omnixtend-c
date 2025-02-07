@@ -10,12 +10,17 @@ int reply_drop_cnt = 0;
 
 void tl_handler() {
 	// dequeue from th_buffer
-	TileLinkMsg *tlmsg = (TileLinkMsg *) malloc (sizeof(TileLinkMsg));
+	TileLinkMsg *tlmsg;
 
-	if(is_queue_empty(tl_message_buffer))
+	if (is_queue_empty(tl_message_buffer))
 		goto out;
 
-	tlmsg = (TileLinkMsg *) dequeue(tl_message_buffer); 
+	if (is_queue_full(reply_buffer)) {
+		//printf("%s reply buffer is full.\n", __func__);
+		goto out;
+	}
+
+	tlmsg = (TileLinkMsg *)dequeue(tl_message_buffer); 
 
 	// handle & make reponse
 	TloeFrame *tloeframe = malloc(sizeof(TloeFrame));
@@ -44,7 +49,6 @@ void tl_handler() {
 	}
 
 out:
-	free(tlmsg);
 }
 #if 0
 void tl_handler(TileLinkMsg *tl, int *channel, int *credit) {
