@@ -18,6 +18,7 @@ typedef struct tloe_frame_struct {
     int seq_num;
     int seq_num_ack;
     int ack; // ack = 1; nack = 0
+	int opcode;
     // TL messages 
 	
 	// Mask	

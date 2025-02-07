@@ -1,13 +1,15 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <stdlib.h>
 #include "tloe_receiver.h"
 #include "tloe_frame.h"
 #include "tloe_endpoint.h"
 #include "retransmission.h"
 #include "tilelink_handler.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
 
 static int ack_cnt = 0;
+static int tlmsg_drop_cnt = 0;
 
 void RX(TloeEther *ether) {
     int size;
@@ -42,7 +44,7 @@ void RX(TloeEther *ether) {
             }
 
 			// Increase Credits for flow control
-			inc_credit(fc_credit, tloeframe->channel, tloeframe->credit);
+			//inc_credit(fc_credit, tloeframe->channel, tloeframe->credit);
 
             // Update sequence numbers
             next_rx_seq = (tloeframe->seq_num + 1) % (MAX_SEQ_NUM + 1);
@@ -52,7 +54,7 @@ void RX(TloeEther *ether) {
             free(tloeframe);
 
             if (ack_cnt % 100 == 0) {
-                printf("next_tx: %d, ackd: %d, next_rx: %d, ack_cnt:%d, cha:%d, credit:%d\n", next_tx_seq, acked_seq, next_rx_seq, ack_cnt, CHANNEL_A, get_credit(fc_credit, CHANNEL_A));
+                printf("next_tx: %d, ackd: %d, next_rx: %d, ack_cnt:%d, cha:%d, credit:%d (%d)\n", next_tx_seq, acked_seq, next_rx_seq, ack_cnt, CHANNEL_A, get_credit(fc_credit, CHANNEL_A), tlmsg_drop_cnt);
             }
         } else {
             // Normal request packet
@@ -61,28 +63,47 @@ void RX(TloeEther *ether) {
 			TileLinkMsg *tl = malloc(sizeof(TileLinkMsg));
 			int channel = 0;
 			int credit = 0;
+			int ack = 1; // ACK:1, NAK:0
+			int seq_num = tloeframe->seq_num;
 
-            // Handle TileLink Msg
-			tl_handler(tl, &channel, &credit);
-//          printf("RX: Send pakcet to Tx channel for replying ACK/NAK with seq_num: %d, seq_num_ack: %d, ack: %d\n",
-//              tloeframe->seq_num, tloeframe->seq_num_ack, tloeframe->ack);
+			if (is_queue_full(tl_message_buffer)) { 
+				ack = 0;
+				seq_num = (next_rx_seq - 1) < 0 ? MAX_SEQ_NUM : next_rx_seq - 1;  
+			}
+
+			/* random drop: p = 1/10000 */
+			if (rand() % 10000 == 0) {
+				ack = 0;
+				seq_num--;
+			}
 
             *frame = *tloeframe;
             frame->mask = 0;                // To indicate ACK
+			frame->ack = ack;
 			frame->channel = channel;
 			frame->credit = credit;
+			frame->seq_num = seq_num;
 
             if (!enqueue(ack_buffer, (void *) frame)) {
-                printf("File: %s line: %d: enqueue error\n", __FILE__, __LINE__);
+                printf("File: %s line: %d: ack_buffer enqueue error\n", __FILE__, __LINE__);
                 exit(1);
             }
 
-            // Update sequence numbers
-            next_rx_seq = (tloeframe->seq_num + 1) % (MAX_SEQ_NUM+1);
-            acked_seq = tloeframe->seq_num_ack;
+			if (ack) {
+				// Update sequence numbers
+				next_rx_seq = (tloeframe->seq_num + 1) % (MAX_SEQ_NUM + 1);
+				acked_seq = tloeframe->seq_num_ack;
+
+				tl->opcode = tloeframe->opcode;
+				if (!enqueue(tl_message_buffer, (void *) tl)) {
+					//printf("File: %s line: %d: tl_message_buffer enqueue error\n", __FILE__, __LINE__);
+					//exit(1);
+					// (DEBUG) DROP TL message
+					tlmsg_drop_cnt++;
+				}
+			}
 
 			// tloeframe must be freed here
-			free(tl);
 			free(tloeframe);
 		}
 		//if (next_tx_seq % 100 == 0)
@@ -92,7 +113,9 @@ void RX(TloeEther *ether) {
         // The frame should be dropped, NEXT_RX_SEQ is not updated
         // A positive acknowledgment is sent using the received sequence number
         int seq_num = tloeframe->seq_num;
-        printf("TLoE frame is a duplicate. seq_num: %d, next_rx_seq: %d\n", seq_num, next_rx_seq);
+        printf("TLoE frame is a duplicate. ");
+		printf("seq_num: %d, next_rx_seq: %d, mask: %d\n", 
+			seq_num, next_rx_seq, tloeframe->mask);
 
         // If the received frame contains data, enqueue it in the message buffer
 
@@ -102,6 +125,7 @@ void RX(TloeEther *ether) {
             free(tloeframe);
         }
 
+        tloeframe->seq_num = seq_num;
         tloeframe->seq_num_ack = seq_num;
         tloeframe->ack = 1;
         tloeframe->mask = 0; // To indicate ACK
@@ -119,7 +143,9 @@ void RX(TloeEther *ether) {
         if (last_proper_rx_seq < 0)
             last_proper_rx_seq += MAX_SEQ_NUM + 1;
 
-        printf("TLoE frame is out of sequence with seq_num: %d, next_rx_seq: %d\n", tloeframe->seq_num, next_rx_seq);
+        printf("TLoE frame is out of sequence ");
+		printf("with seq_num: %d, next_rx_seq: %d, last: %d\n", 
+			tloeframe->seq_num, next_rx_seq, last_proper_rx_seq);
 
         // If the received frame contains data, enqueue it in the message buffer
         if (!is_ack_msg(tloeframe)) {

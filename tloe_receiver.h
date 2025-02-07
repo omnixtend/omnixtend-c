@@ -6,6 +6,7 @@
 
 extern CircularQueue *retransmit_buffer;
 extern CircularQueue *ack_buffer;
+extern CircularQueue *tl_message_buffer;
 extern FlowControlCredit *fc_credit;
 extern int next_tx_seq;
 extern int next_rx_seq;

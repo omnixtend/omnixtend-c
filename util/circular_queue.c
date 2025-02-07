@@ -47,10 +47,25 @@ bool is_queue_full(CircularQueue *queue) {
     return (queue->rear + 1) % queue->size == queue->front;
 }
 
+#include "../tloe_frame.h"
+
 bool enqueue(CircularQueue *queue, void *data) {
     if (is_queue_full(queue)) {
         return false; // 큐가 가득 참
     }
+{
+	extern CircularQueue *message_buffer;
+
+	if (queue == message_buffer) {
+		TloeFrame *tf = (TloeFrame *)data;
+		if(tf->mask == 0) {
+			printf("ERROR\n");
+			while(1)
+				;
+		}
+	}
+}
+
     queue->data[queue->rear] = data;
     queue->rear = (queue->rear + 1) % queue->size;
     return true;

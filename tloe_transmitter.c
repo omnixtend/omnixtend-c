@@ -16,6 +16,12 @@ TloeFrame *TX(TloeFrame *tloeframe, TloeEther *ether) {
 		ackframe->seq_num_ack = ackframe->seq_num;
 		ackframe->seq_num = next_tx_seq;
 
+
+
+
+
+
+
 		//            printf("TX: Sending ACK/NAK with seq_num: %d, seq_num_ack: %d, ack: %d\n",
 		//              tloeframe->seq_num, tloeframe->seq_num_ack, tloeframe->ack);
 
@@ -30,7 +36,8 @@ TloeFrame *TX(TloeFrame *tloeframe, TloeEther *ether) {
 		// Checking credit for flow control, increase the sequence number, store in the retransmission buffer, and send
 		if (is_ack_msg(tloeframe)) {
 			printf("ERROR: %s: %d\n", __FILE__, __LINE__);
-			exit(1);
+			//exit(1);
+			while(1);	
 		} 
 
 		// Check credit for flow control
@@ -40,6 +47,7 @@ TloeFrame *TX(TloeFrame *tloeframe, TloeEther *ether) {
 			// Enqueue to retransmitBuffer
 			RetransmitBufferElement *e = (RetransmitBufferElement *)malloc(sizeof(RetransmitBufferElement));
 
+			e->tloe_frame = *tloeframe;
 			e->tloe_frame.seq_num = next_tx_seq;
 			e->state = TLOE_INIT;
 			e->send_time = time(NULL);
