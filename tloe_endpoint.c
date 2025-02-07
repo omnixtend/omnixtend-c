@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include "tloe_endpoint.h"
 #include "tloe_ether.h"
@@ -104,6 +105,8 @@ int main(int argc, char *argv[]) {
 	tl_message_buffer = create_queue(100);
 	reply_buffer = create_queue(100);
 	fc_credit = create_credit();	
+
+	srand(time(NULL));
 
 	if (pthread_create(&tloe_endpoint_thread, NULL, tloe_endpoint, NULL) != 0) {
         error_exit("Failed to ack reply thread");

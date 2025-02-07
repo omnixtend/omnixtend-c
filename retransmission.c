@@ -11,7 +11,7 @@ int retransmit(TloeEther *ether, CircularQueue *retransmit_buffer, int seq_num_n
         if (element->tloe_frame.seq_num > seq_num_nack) {
 
 			frame = element->tloe_frame;
-			frame.mask = 1;		// Indicate to normal packet
+			//frame.mask = 1;		// Indicate to normal packet
 
 			printf("Retransmission with num_seq: %d\n", frame.seq_num);
             tloe_ether_send(ether, (char *)&frame, sizeof(TloeFrame));
@@ -25,6 +25,9 @@ int retransmit(TloeEther *ether, CircularQueue *retransmit_buffer, int seq_num_n
 int slide_window(TloeEther *ether, CircularQueue *retransmit_buffer, int seq_num_ack) {
     RetransmitBufferElement *e;
 	int acked_seq = 0;
+
+	if (seq_num_ack > 1030)
+		while(1);
 
     // dequeue TLoE frames from the retransmit buffer
     e = (RetransmitBufferElement *) getfront(retransmit_buffer);
