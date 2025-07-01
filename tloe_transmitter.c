@@ -170,8 +170,8 @@ tl_msg_t *TX(tloe_endpoint_t *e, tl_msg_t *request_normal_tlmsg) {
     memset((void *)rbe, 0, sizeof(RetransmitBufferElement));
 
     // Enqueue to retransmit buffer
-    enqueued = enqueue_retransmit_buffer(e, rbe, f, tloeframe_size);
-    BUG_ON(!enqueued, "failed to enqueue retransmit buffer element.");
+    //enqueued = enqueue_retransmit_buffer(e, rbe, f, tloeframe_size);
+    //BUG_ON(!enqueued, "failed to enqueue retransmit buffer element.");
 
     // Send normal frame
     // Send the request_normal_tlmsg

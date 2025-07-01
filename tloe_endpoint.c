@@ -315,8 +315,12 @@ static int handle_user_input(tloe_endpoint_t *e, char input, uint64_t args1,
         printf("Exiting...\n");
         ret = 1;
         goto out;
+    } else if (input == 'e') {
+        printf("Starting Arty-demo...\n");
+        e->connection = 1;
     } else {
         if (!is_conn(e)) return 0;
+
     }
 out:
     return ret;
@@ -440,7 +444,7 @@ int main(int argc, char *argv[]) {
     }
 
     while(!(e->is_done)) {
-        printf("Enter 'c' to open, 'd' to close, 's' to status, 'a' to send, 'q' to quit:\n");
+        printf("Enter 'e' to Arty-demo, 'c' to open, 'd' to close, 's' to status, 'a' to send, 'q' to quit:\n");
         printf("> ");
         fgets(input_count, sizeof(input_count), stdin);
 
