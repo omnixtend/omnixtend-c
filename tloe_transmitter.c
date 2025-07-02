@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stddef.h>
+#include <unistd.h>
 
 #include "tloe_common.h"
 #include "tloe_transmitter.h"
@@ -177,6 +178,8 @@ tl_msg_t *TX(tloe_endpoint_t *e, tl_msg_t *request_normal_tlmsg) {
     // Send the request_normal_tlmsg
     debug_print_send_frame(f);
     send_request_normal_frame(e, f, tloeframe_size);
+    // Add small delay after sending frame
+    usleep(100000);  // 1ms delay
     // Set the state to TLOE_SENT
     rbe->state = TLOE_SENT;
 
